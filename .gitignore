@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# Environment
+.env
+*.env
+!requirements.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+test_*.py
+test_*.xlsx
+test_*.csv
+*_test.py
+*_test.xlsx
+
+# Allow committed tests in tests/
+!tests/
+!tests/*.py
+
+# CSV exports
+*.csv
+!requirements.txt
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+~$*.xlsx
+~$*.doc
+~$*.xls
+
+# Build artifacts
+/build/
+
+# Excel temporary
+*.xlsx~
+*.xls~
+
+# Secrets and credentials
+*.pem
+*.key
+*.secret
+*_secret.*
+credentials.*
+secrets.*
+
+# Passbolt exports (might contain passwords)
+passbolt_*.csv
+passbolt_*.xlsx
+import-*.csv
+import-*.xlsx

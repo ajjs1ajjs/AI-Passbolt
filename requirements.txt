@@ -1,0 +1,6 @@
+pandas
+google-genai
+python-dotenv
+customtkinter
+groq
+openpyxl
