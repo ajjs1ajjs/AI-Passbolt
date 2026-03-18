@@ -1,0 +1,6 @@
+pandas
+python-dotenv
+customtkinter
+groq
+openpyxl
+tqdm
