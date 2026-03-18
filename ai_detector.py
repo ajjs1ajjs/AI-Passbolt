@@ -4,19 +4,10 @@ Determines header row, column mapping, and data format.
 """
 
 import json
-import logging
 import re
-import time
 from typing import Any, Dict, List, Optional
 
 from groq import Groq
-
-logger = logging.getLogger(__name__)
-
-# Constants
-API_REQUEST_TIMEOUT = 30  # seconds
-API_MAX_RETRIES = 3
-API_RETRY_DELAY = 1  # seconds (base for exponential backoff)
 
 
 class AIStructureDetector:
@@ -102,39 +93,16 @@ Common group header patterns in Ukrainian/Russian:
         # Prepare sample for AI
         sample_text = self._format_sample(sample_rows, sheet_name)
 
-        # Call Groq API with retry logic
-        response = None
-        last_error = None
-
-        for attempt in range(API_MAX_RETRIES):
-            try:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "system", "content": self.SYSTEM_PROMPT},
-                        {"role": "user", "content": sample_text},
-                    ],
-                    temperature=0.1,
-                    max_tokens=500,
-                    timeout=API_REQUEST_TIMEOUT,
-                )
-                break  # Success
-            except Exception as e:
-                last_error = e
-                logger.warning(
-                    f"API request failed (attempt {attempt + 1}/{API_MAX_RETRIES}): {e}"
-                )
-                if attempt < API_MAX_RETRIES - 1:
-                    # Exponential backoff
-                    delay = API_RETRY_DELAY * (2**attempt)
-                    logger.info(f"Retrying in {delay} seconds...")
-                    time.sleep(delay)
-
-        if response is None:
-            raise Exception(
-                f"Failed to call Groq API after {API_MAX_RETRIES} attempts. "
-                f"Last error: {last_error}"
-            )
+        # Call Groq API
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": self.SYSTEM_PROMPT},
+                {"role": "user", "content": sample_text},
+            ],
+            temperature=0.1,  # Low temperature for consistent output
+            max_tokens=500,
+        )
 
         # Parse response
         result_text = response.choices[0].message.content.strip()

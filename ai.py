@@ -1,139 +1,18 @@
-import hashlib
 import json
-import logging
 import os
 import re
 import threading
-import time
-from datetime import datetime
 from tkinter import filedialog, messagebox
-from typing import Any, Dict, List, Optional
 
 import customtkinter as ctk
 import pandas as pd
 from dotenv import load_dotenv, set_key
 from excel_parser import ExcelParser
-
-# DND_FILES may not be available in all tkinter installations
-try:
-    from tkinter import DND_FILES
-except ImportError:
-    DND_FILES = None
 from groq import Groq
 
 load_dotenv()
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
-
-# Constants
-CACHE_EXPIRY_SECONDS = 86400 * 7  # 7 days
-API_REQUEST_TIMEOUT = 30  # seconds
-API_MAX_RETRIES = 3
-GROQ_KEY_PREFIX = "gsk_"
-
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-CACHE_DIR = os.path.join(DATA_DIR, "cache")
-LOGS_DIR = os.path.join(DATA_DIR, "logs")
-
-for d in [DATA_DIR, CACHE_DIR, LOGS_DIR]:
-    os.makedirs(d, exist_ok=True)
-
-LOG_FILE = os.path.join(LOGS_DIR, f"app_{datetime.now().strftime('%Y%m')}.log")
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler(LOG_FILE, encoding="utf-8"), logging.StreamHandler()],
-)
-logger = logging.getLogger(__name__)
-
-
-def validate_groq_api_key(api_key: str) -> bool:
-    """Перевірити чи дійсний API ключ Groq.
-
-    Groq API ключі починаються з префіксу 'gsk_'.
-
-    Args:
-        api_key: Ключ для перевірки
-
-    Returns:
-        True якщо ключ валідний, False інакше
-    """
-    if not api_key or not isinstance(api_key, str):
-        return False
-    api_key = api_key.strip()
-    if len(api_key) < 20:
-        return False
-    return api_key.startswith(GROQ_KEY_PREFIX)
-
-
-class AICache:
-    """Cache for AI analysis results to avoid repeated API calls."""
-
-    def __init__(self, cache_dir: str):
-        self.cache_dir = cache_dir
-        os.makedirs(cache_dir, exist_ok=True)
-
-    def _get_cache_key(self, data: List[List], model: str) -> str:
-        data_str = str(data[:20])
-        return hashlib.md5((data_str + model).encode()).hexdigest()
-
-    def get(self, data: List[List], model: str) -> Optional[Dict]:
-        key = self._get_cache_key(data, model)
-        cache_file = os.path.join(self.cache_dir, f"{key}.json")
-        if os.path.exists(cache_file):
-            try:
-                with open(cache_file, "r", encoding="utf-8") as f:
-                    cached = json.load(f)
-                    if time.time() - cached.get("timestamp", 0) < CACHE_EXPIRY_SECONDS:
-                        logger.info(f"Cache hit for key {key[:8]}...")
-                        return cached.get("result")
-            except Exception:
-                pass
-        return None
-
-    def set(self, data: List[List], model: str, result: Dict):
-        key = self._get_cache_key(data, model)
-        cache_file = os.path.join(self.cache_dir, f"{key}.json")
-        try:
-            with open(cache_file, "w", encoding="utf-8") as f:
-                json.dump(
-                    {"timestamp": time.time(), "result": result}, f, ensure_ascii=False
-                )
-            logger.info(f"Cached result for key {key[:8]}...")
-        except Exception as e:
-            logger.error(f"Failed to cache: {e}")
-
-
-class DropFrame(ctk.CTkFrame):
-    """Frame that supports drag & drop files."""
-
-    def __init__(self, master, callback, **kwargs):
-        super().__init__(master, **kwargs)
-        self.callback = callback
-        self.configure(border_width=2, border_color="#3B8ED0")
-
-        self.drop_label = ctk.CTkLabel(
-            self,
-            text="📂 Перетягніть файли сюди\nабо натисніть кнопку нижче",
-            font=("Arial", 14),
-            text_color="gray",
-        )
-        self.drop_label.pack(pady=30, padx=20)
-
-        self.bind("<Button-1>", lambda e: self._on_click())
-        self.drop_label.bind("<Button-1>", lambda e: self._on_click())
-
-        try:
-            self.drop_target_register = lambda: None
-        except:
-            pass
-
-    def _on_click(self):
-        files = filedialog.askopenfilenames(
-            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")]
-        )
-        if files:
-            self.callback(list(files))
 
 
 class AIPassboltApp(ctk.CTk):
@@ -199,19 +78,9 @@ class AIPassboltApp(ctk.CTk):
         )
         self.btn_analyze.grid(row=1, column=0, padx=20, pady=15, sticky="ew")
 
-        # Progress bar and label
-        self.progress_frame = ctk.CTkFrame(self.tab_converter, fg_color="transparent")
-        self.progress_frame.grid(row=2, column=0, padx=20, pady=5, sticky="ew")
-
-        self.lbl_progress = ctk.CTkLabel(
-            self.progress_frame, text="", text_color="gray", width=150
-        )
-        self.lbl_progress.pack(side="left", fill="x", expand=True)
-
-        self.progress_bar = ctk.CTkProgressBar(
-            self.progress_frame, mode="indeterminate", width=200
-        )
-        self.progress_bar.pack(side="right", padx=(10, 0))
+        # Progress label
+        self.lbl_progress = ctk.CTkLabel(self.tab_converter, text="", text_color="gray")
+        self.lbl_progress.grid(row=2, column=0, padx=20, pady=5)
 
         # Result frame
         self.result_frame = ctk.CTkScrollableFrame(
@@ -501,15 +370,6 @@ class AIPassboltApp(ctk.CTk):
         self.groq_key = self.entry_groq.get().strip()
         self.use_ai_detection = self.ai_detection_var.get()
 
-        # Validate API key format
-        if self.groq_key and not validate_groq_api_key(self.groq_key):
-            messagebox.showwarning(
-                "Попередження",
-                "API ключ має сумнівний формат.\n"
-                "Ключі Groq починаються з 'gsk_'.\n\n"
-                "Перевірте ключ на https://console.groq.com",
-            )
-
         # Create .env file if it doesn't exist
         if not os.path.exists(".env"):
             with open(".env", "w") as f:
@@ -601,8 +461,6 @@ class AIPassboltApp(ctk.CTk):
             return
 
         self.btn_analyze.configure(state="disabled", text="Обробка...")
-        self.lbl_progress.configure(text="Завантаження файлу...")
-        self.progress_bar.start()
         threading.Thread(target=self._run_smart_parse, daemon=True).start()
 
     def _run_smart_parse(self):
@@ -696,7 +554,6 @@ class AIPassboltApp(ctk.CTk):
                             ),
                         )
                     except Exception as e:
-                        self.after(0, self.stop_progress)
                         self.after(
                             0,
                             lambda: messagebox.showerror(
@@ -776,7 +633,6 @@ IMPORTANT: Create ONE record for EACH server/resource row. Do NOT skip any!
                             ),
                         )
                     except Exception as e:
-                        self.after(0, self.stop_progress)
                         self.after(
                             0,
                             lambda: messagebox.showerror(
@@ -788,7 +644,6 @@ IMPORTANT: Create ONE record for EACH server/resource row. Do NOT skip any!
             import traceback
 
             error_details = traceback.format_exc()
-            self.after(0, self.stop_progress)
             self.after(
                 0,
                 lambda: messagebox.showerror(
@@ -796,10 +651,10 @@ IMPORTANT: Create ONE record for EACH server/resource row. Do NOT skip any!
                 ),
             )
 
-        self.after(0, self.stop_progress)
         self.after(
             0, lambda: self.btn_analyze.configure(state="normal", text="Обробити")
         )
+        self.after(0, lambda: self.lbl_progress.configure(text=""))
 
     def _preprocess_vertical_format(self, raw_data):
         """
@@ -1849,17 +1704,9 @@ DO NOT skip records with empty passwords - include ALL records!
                     state="normal", text="AI Аналіз та Конвертація"
                 ),
             )
-            self.after(0, self.stop_progress)
-
-    def stop_progress(self):
-        """Stop progress bar and clear label."""
-        self.progress_bar.stop()
-        self.lbl_progress.configure(text="")
+            self.after(0, lambda: self.lbl_progress.configure(text=""))
 
     def update_result_ui(self):
-        # Stop progress bar
-        self.after(0, self.stop_progress)
-
         for widget in self.result_frame.winfo_children():
             widget.destroy()
 

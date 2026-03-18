@@ -1,7 +1,5 @@
 import json
-import logging
 import re
-import time
 from typing import Any, Dict, List, Optional, Tuple
 
 import openpyxl
@@ -9,13 +7,6 @@ import pandas as pd
 from ai_detector import AIStructureDetector
 from groq import Groq
 from openpyxl import load_workbook
-
-logger = logging.getLogger(__name__)
-
-# Constants
-API_REQUEST_TIMEOUT = 30  # seconds
-API_MAX_RETRIES = 3
-API_RETRY_DELAY = 1  # seconds (base for exponential backoff)
 
 
 class AIEnhancedParser:
@@ -57,38 +48,13 @@ class AIEnhancedParser:
             f"ITEMS:\n{json.dumps(items, ensure_ascii=False)}"
         )
 
-        # Call Groq API with retry logic
-        response = None
-        last_error = None
-
-        for attempt in range(API_MAX_RETRIES):
-            try:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[{"role": "user", "content": prompt}],
-                    response_format={"type": "json_object"},
-                    temperature=0.1,
-                    max_tokens=800,
-                    timeout=API_REQUEST_TIMEOUT,
-                )
-                break  # Success
-            except Exception as e:
-                last_error = e
-                logger.warning(
-                    f"API request failed (attempt {attempt + 1}/{API_MAX_RETRIES}): {e}"
-                )
-                if attempt < API_MAX_RETRIES - 1:
-                    # Exponential backoff
-                    delay = API_RETRY_DELAY * (2**attempt)
-                    logger.info(f"Retrying in {delay} seconds...")
-                    time.sleep(delay)
-
-        if response is None:
-            logger.error(
-                f"Failed to call Groq API after {API_MAX_RETRIES} attempts. "
-                f"Last error: {last_error}"
-            )
-            return {}  # Return empty result instead of raising
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            temperature=0.1,
+            max_tokens=800,
+        )
 
         text = response.choices[0].message.content.strip()
 

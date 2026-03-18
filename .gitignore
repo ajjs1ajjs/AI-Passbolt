@@ -4,27 +4,15 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
 .venv/
 venv/
 ENV/
 env/
+
+# Environment
+.env
+*.env
+!requirements.txt
 
 # IDE
 .vscode/
@@ -33,19 +21,52 @@ env/
 *.swo
 *~
 
-# Environment variables
-.env
-
-# Logs
-*.log
-logs/
-
-# Data directories
-data/
-
-# PyInstaller
-*.spec.bak
-
 # OS
 .DS_Store
 Thumbs.db
+
+# Test files
+test_*.py
+test_*.xlsx
+test_*.csv
+*_test.py
+*_test.xlsx
+
+# Allow committed tests in tests/
+!tests/
+!tests/*.py
+
+# CSV exports
+*.csv
+!requirements.txt
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+~$*.xlsx
+~$*.doc
+~$*.xls
+
+# Build artifacts
+/build/
+
+# Excel temporary
+*.xlsx~
+*.xls~
+
+# Secrets and credentials
+*.pem
+*.key
+*.secret
+*_secret.*
+credentials.*
+secrets.*
+
+# Passbolt exports (might contain passwords)
+passbolt_*.csv
+passbolt_*.xlsx
+import-*.csv
+import-*.xlsx
