@@ -1806,6 +1806,21 @@ DO NOT skip records with empty passwords - include ALL records!
             )
             return
 
+        # Security warning
+        security_warning = messagebox.askyesno(
+            "⚠️ Попередження про безпеку",
+            "ЕКСПОРТОВАНІ CSV ФАЙЛИ МІСТЯТЬ ПАРОЛІ У ВІДКРИТОМУ ВИГЛЯДІ!\n\n"
+            "Цей файл буде використано для імпорту в Passbolt.\n\n"
+            "❗ ПІСЛЯ ІМПОРТУ В PASSBOLT:\n"
+            "1. Видаліть CSV файл назавжди (Shift+Delete)\n"
+            "2. Очистіть кошик\n"
+            "3. Не зберігайте CSV на хмарних дисках\n\n"
+            "Ви згодні дотримуватись правил безпеки?",
+            icon="warning",
+        )
+        if not security_warning:
+            return
+
         final_df = pd.DataFrame(cleaned)[
             ["Group", "Title", "Username", "Password", "URL", "Notes"]
         ]
@@ -1828,7 +1843,8 @@ DO NOT skip records with empty passwords - include ALL records!
                     "Успіх",
                     f"Файл збережено: {save_path}\n\n"
                     f"Записів: {len(cleaned)}\n\n"
-                    f"В Passbolt: Імпорт → KeePass (CSV)",
+                    f"В Passbolt: Імпорт → KeePass (CSV)\n\n"
+                    f"⚠️ НЕ ЗАБУДЬТЕ ВИДАЛИТИ ФАЙЛ ПІСЛЯ ІМПОРТУ!",
                 )
             except Exception as e:
                 messagebox.showerror(
